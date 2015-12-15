@@ -60,6 +60,7 @@ erpH = hilbert(erp);
 figure(2), clf
 
 % plot ERP and real part of Hilbert transformed ERP
+EEG.times = EEG.times/256
 subplot(311)
 plot(EEG.times,erp), hold on
 plot(EEG.times,real(erpH),'r')
