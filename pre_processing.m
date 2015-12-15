@@ -4,11 +4,12 @@
 %
 %% Pre processing of mat file 
 clear all
-patinetsfolder = 'C:\Users\Jaime\Documents\BIAL PROJECT\patients\'
+patinetsfolder = 'C:\Users\shelagh\Desktop\patients'
 singlepatientfolder = 'Cordeiro, Jessica'
 sessionspfolder = 'Session 1 day 1 20 October'
-sessionmatfile = 'test-10302015-all-10minsr250.mat'
-lfile = fullfile(patinetsfolder,singlepatientfolder,sessionspfolder,sessionmatfile)
+dpfolder = 'dp_cj28_20151020_s1'
+sessionmatfile = 'EEG_raw_cj28_20151020_s1.mat'
+lfile = fullfile(patinetsfolder,singlepatientfolder,sessionspfolder, dpfolder, sessionmatfile)
 if exist(lfile, 'file') == 2
     load(lfile)
 else
@@ -17,20 +18,18 @@ else
     uiwait(msgbox(warningMessage));
     return;
 end
-%
 % Optionally, open dialog to open file this would also work:
 % [file2load,path4file]=uigetfile('*.mat','Please select EEG data file');
 % load([ path4file file2load ])
-
-%The EEG structure is loaded. Check number of channels and other fields
-%EEG.nbchan
-%plot a couple of channels
-%plot(EEG.times, EEG.data(1,:,:))
-%plot(EEG.times,EEG.data(2,:,:))
-
-%% Filtering the signal
-% resample the signal is necessary
-%pop_resample()
+% Resampling and  Filtering the signal
+% Resample the signal is necessary
+% Optionally we can resample the EEG 
+newfreq = 256
+[EEG] = pop_resample(EEG, newfreq);
+filtered_rsample_sessionmatfile = 'EEG_raw_rsample256_cj28_20151020_s1.mat'
+lfiltfile = fullfile(patinetsfolder,singlepatientfolder,sessionspfolder, dpfolder,filtered_rsample_sessionmatfile);
+save(lfiltfile,'EEG')
+%Filter data band pass and stop filters
 locutoff = 0.5 %high band filter
 hicutoff = 70  %low band filter
 notchf = 60 %notch filter in the Americas 
@@ -41,12 +40,13 @@ sprintf('Filtering signal, High pass =%0.1f Hz. and Low Band %0.1f = Hz.',locuto
 sprintf('Filtering with notch filter at %0.1f Hz.',notchf )
 EEG = pop_iirfilt( EEG, 59, 61, [], [1]);
 % Save EEG data into .mat file
-filteredsessionmatfile = 'fil_test-10302015-all-10minsr250.mat'
-save(filteredsessionmatfile,'EEG')
+filteredsessionmatfile = 'EEG_raw_filtered_rsample256_cj28_20151020_s1.mat'
+lfiltfile = fullfile(patinetsfolder,singlepatientfolder,sessionspfolder, dpfolder,filteredsessionmatfile);
+save(lfiltfile,'EEG','-v7.3')
 
 % Plot channel spectra maps
 %% Removing bad channels
-pop_eegplot(EEG)
+%pop_eegplot(EEG)
 
 %% Removing bad epochs
 

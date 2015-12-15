@@ -4,3 +4,6 @@
  myfile = 'EEG_raw_cj28_20151020_s1.mat'
  myfullname = fullfile(mydir, myfile)
  save(myfullname, 'EEG')
+ timelimits2 = [52799 5526122]
+ EEGcutbsnormal =  eeg_eegrej(EEGcutbsnormal1, timelimits2);
+ save('cut1_bs_induction_filteredbp-notch_cj28_20151020_s1.mat','EEGcutbsinduction')

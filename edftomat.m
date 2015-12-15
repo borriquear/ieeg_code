@@ -18,8 +18,8 @@ function [listofchannels, seconds_ini, seconds_end] = edftomat(n)
     allOneString = sprintf('%.0f,' , listofchannels);
     allOneString = allOneString(1:end-1);% strip final comma
     sprintf(allOneString)
-    time_ini = '14:35:59';
-    time_end = '14:39:59';
+    time_ini = '13:55:08'; %'12:53:05 ';  induction timelimits = [50108 50264] || normal baseline[52559 52799]
+    time_end = '13:57:44'; %12:56:41
     [seconds_ini] = calcseconds(time_ini);
     [seconds_end] = calcseconds(time_end);
     epoch_seconds = seconds_end - seconds_ini;
