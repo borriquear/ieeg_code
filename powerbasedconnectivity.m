@@ -1,156 +1,157 @@
 %% This function does powerbased connectivity computation -ch27-
 
 function [] = powerbasedconnectivity()
-%% Figure 27.2
+%% powerbasedconnectivity  Calculate r_pearson_corrmat and r_spearman_corrmat, savein mat files if all_pair= 1 AND chantouse = EEG.nbchan
+% INPUT: centefreq
 % shows the distribution of powerdata per channel, both raw and logartihm
 % scale to make it look more normal. We do the SK test of normality
 % can be used for single channels or for all channels, iof single channel
 % draw disribution, f all channels only if chanel power time series has
 % normal distribution
+% 1. Load data
+%    Call to initialize_EEG_variables() and initialize_wavelet(EEG_study)
+% 2. Calculate if the channels have a normal distribution, if so, display the power time series and the log power
+    % We check to display the chart only for those channels that have no normal
+    % distribution, or when we are interested in only one channel, initchan = chantouse
+% 3. Calculate the correlation matrix between pairs or only one pair(all_pair)
+    % all_pair= 1, default,  to calculate corretaltion for all pairs, 
+    % r_pearson_corrmat and r_spearman_corrmat
+% 4. Call to timefrequencypower(...) to calculate Time frequency power, for 2 channels conditional to another
+% 
+%% 1. Load epoch and Initialize data
 %load sampleEEGdata
-%% Load epoch and Initialize data
-%
 %disp('Closing open windows....')
 %close all
 disp('Loading data....')
-[myfullname, EEG_study, channel_labels, time] = initialize_EEG_variables();
+[myfullname, EEG_study, channel_labels] = initialize_EEG_variables();
 EEG = EEG_study;
-[half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles] = initialize_wavelet(time, EEG_study);
+[half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles, time] = initialize_wavelet(EEG_study);
 % draw_all_single_correlations = 0 do not draw all correlation chart,
 % justmatrix, set to 0 when calculating the entire matrix
 draw_all_single_correlations = 0;
 times2plot =  dsearchn(EEG.times',[ EEG.times(1) EEG.times(end)]');
 trial2plot = EEG.trials;
-centerfreq = 10;
-
 [pathstr, subjandcond, matext] = fileparts(myfullname);
 %To plot only one channel: initchan = chantouse
 %To plot from channel 12 to 23, initchan = 12, chantouse = 23;
 initchan =  2;
 %chantouse = 11;
 chantouse = EEG.nbchan;
-chantouse = 3;
+%chantouse = 3;
 disp('Data Loaded OK!');
-
-%% Calculate if the channels have a normal distribution, if so, display the power time series and the log power
-% Show the chart only for one channel 
-disp('Calculating if there is some channel with power time series Nornally distributed...')
-%disp(['Calculating for channel:', num2str(initchan) ' to ', num2str(chantouse)])
-%number of channels with power values normally distributed
-counternormalc = 0;
-
-for chani=initchan:chantouse 
-    %setup wavelet convolution and outputs
-    sensor2use = channel_labels(chani);
-    %time = -1:1/EEG.srate:1;
-    %half_of_wavelet_size = (length(time)-1)/2;
-    % FFT parameters
-    %n_wavelet     = length(time);
-    %n_data        = EEG.pnts*EEG.trials;
-    %n_convolution = n_wavelet+n_data-1;
-    %wavelet_cycles= 4.5;
+center_freq_bands = [2.5 5 10 20 40] %delta, theta, alpha,beta, gamma
+%center_freq_bands = [2.5]
+disp(['Calculating Power-based connectibity for ' num2str(size(center_freq_bands,2)) ' frequency bands '] )
+%% 2..4
+for freq_index=1:size(center_freq_bands,2)
+    centerfreq = center_freq_bands(freq_index); 
+    %% 2. Calculate if the channels have a normal distribution, if so, display the power time series and the log power
+    % Show the chart only for one channel
+    disp('Calculating if there is some channel with power time series Nornally distributed...')
+    %disp(['Calculating for channel:', num2str(initchan) ' to ', num2str(chantouse)])
+    %number of channels with power values normally distributed
+    counternormalc = 0;
     
-    % FFT of data (note: this doesn't change on frequency iteration)
-    fft_data = fft(reshape(EEG.data(strcmpi(sensor2use,{EEG.chanlocs.labels}),:,:),1,EEG.pnts*EEG.trials),n_convolution);
-    
-    % create wavelet and run convolution
-    fft_wavelet            = fft(exp(2*1i*pi*centerfreq.*time) .* exp(-time.^2./(2*( wavelet_cycles /(2*pi*centerfreq))^2)),n_convolution);
-    convolution_result_fft = ifft(fft_wavelet.*fft_data,n_convolution) * sqrt(wavelet_cycles /(2*pi*centerfreq));
-    convolution_result_fft = convolution_result_fft(half_of_wavelet_size+1:end-half_of_wavelet_size);
-    convolution_result_fft = abs(reshape(convolution_result_fft,EEG.pnts,EEG.trials)).^2;
-    
-    % trim edges so the distribution is not driven by edge artifact outliers
-    % (note: here we just use visual inspection to remove edges)
-    convolution_result_fft = convolution_result_fft(100:end-100,:);
-    % test for normal distribution, if you have the stats toolbox
-    if exist('kstest','file')
-        [h,p1] = kstest(convolution_result_fft(:));
-        [h,p2] = kstest(log10(convolution_result_fft(:)));
-        [h,p3] = kstest(randn(numel(convolution_result_fft),1));
-        disp([ 'Channel:' sensor2use 'KS test for norm power: '        num2str(p1) ' (>.05 means normal distribution) ' ])
-        disp([ 'Channel:' sensor2use 'KS test for log norm power: ' num2str(p2) ' (>.05 means normal distribution) ' ])
-        %disp([ 'KS test for normality of random data: '  num2str(p3) ' (>.05 means normal distribution) ' ])
-    end
-    % display the chart only for those channels that have no normal
-    % distribution, or when we are interested in only one channel, initchan =
-    % chantouse
-    if (p1 + p2 > 0.05) || (initchan == chantouse)
-        % plot distirbution of power data
-        %counter of channel with normal distribtion
-        counternormalc = counternormalc  + 1;
-        figure;
-        %subplot(chantouse-1,2,(chani-1)*2-1)
-        subplot(1,2,1)
-        hist(convolution_result_fft(:),500)
-        % str=sprintf('Distribution of power values = %s ', num2str(sensor2use));
-        title(['Distribution of power for channel: ' sensor2use ])
-        %title(str)
-        %title('Distribution of power values' sensor2use )
-        axis square
-        %set(gca,'xlim',[EEG.times(1) EEG.times(end)],'ylim',[min(real_data(:)) max(real_data(:))])
-        xlabel(['Power (\muV)) channel:  ' sensor2use ])
-        ylabel('Count')
-        %subplot(chantouse-1,2,(chani-1)*2)*
-        subplot(1,2,2)
-        hist(log10(convolution_result_fft(:)),500)
-        title(['Distribution of log_1_0power for channel:', sensor2use])
-        xlabel(['log10 Power for channel: ' sensor2use ])
-        ylabel('Count')
-        axis square
-    end
-end
-%% Calculate the correlation matrix between pairs or only one pair
-% all_pair = 1 corr matrix  for all combinations between initchan and chantouse, all_pair = 0 only between two channels
-all_pair= 1;
-if all_pair == 0 
-    % Calculate the correlation of only one pair
-    sensor1 = 'LHD2';
-    sensor2 = 'LHD1';
-    disp(['Estimation of correlation coefficient of pair ' sensor1 '--' sensor2])
-    %call compute_convolution
-    [convolution_result_fft1, convolution_result_fft2,r_pearson, r_spearman,] = compute_convolution_onepair(sensor1, sensor2, EEG, half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles, time, centerfreq, trial2plot,times2plot, draw_all_single_correlations);
-    disp(['Estimation of correlation coefficient r_pearson=' num2str(r_pearson) ' , r_spearman=' num2str(r_spearman) ])
-else
-    %initialize matrix of correlation coefficients
-    %number of rows (=cols) for which is actually calculated the correlation the correlation matrix
-    nbofrows = chantouse - initchan + 1; 
-    r_pearson_corrmat = zeros(EEG.nbchan-1,EEG.nbchan-1);
-    r_spearman_corrmat = zeros(EEG.nbchan-1,EEG.nbchan-1);
-    disp(['Estimation of correlation coefficient of ALL pair between' channel_labels(initchan) '--' channel_labels(chantouse)])
     for chani=initchan:chantouse
-        for chanj=chani +1:chantouse
-            sensor1 = channel_labels(chani);
-            sensor2 = channel_labels(chanj);
-            [convolution_result_fft1, convolution_result_fft2,r_pearson, r_spearman] = compute_convolution_onepair(sensor1, sensor2, EEG, half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles, time, centerfreq, trial2plot,times2plot,draw_all_single_correlations);
-            disp(['Estimation of correlation coefficient of' sensor1 '--' sensor2 ' r_pearson=' num2str(r_pearson) ' r_spearman=' num2str(r_spearman) ' DONE!'])
-            r_pearson_corrmat(chani-1,chanj-1) = r_pearson;
-            r_pearson_corrmat(chanj-1,chani-1) = r_pearson_corrmat(chani-1,chanj-1);
-            r_spearman_corrmat(chani-1,chanj-1) = r_spearman;
-            r_spearman_corrmat(chanj-1,chani-1) = r_spearman_corrmat(chani-1,chanj-1);
+        %setup wavelet convolution and outputs
+        sensor2use = channel_labels(chani);      
+        % FFT of data (note: this doesn't change on frequency iteration)
+        fft_data = fft(reshape(EEG.data(strcmpi(sensor2use,{EEG.chanlocs.labels}),:,:),1,EEG.pnts*EEG.trials),n_convolution);
+        
+        % create wavelet and run convolution
+        fft_wavelet            = fft(exp(2*1i*pi*centerfreq.*time) .* exp(-time.^2./(2*( wavelet_cycles /(2*pi*centerfreq))^2)),n_convolution);
+        convolution_result_fft = ifft(fft_wavelet.*fft_data,n_convolution) * sqrt(wavelet_cycles /(2*pi*centerfreq));
+        convolution_result_fft = convolution_result_fft(half_of_wavelet_size+1:end-half_of_wavelet_size);
+        convolution_result_fft = abs(reshape(convolution_result_fft,EEG.pnts,EEG.trials)).^2;
+        
+        % trim edges so the distribution is not driven by edge artifact outliers
+        % (note: here we just use visual inspection to remove edges)
+        convolution_result_fft = convolution_result_fft(100:end-100,:);
+        % test for normal distribution, if you have the stats toolbox
+        if exist('kstest','file')
+            [h,p1] = kstest(convolution_result_fft(:));
+            [h,p2] = kstest(log10(convolution_result_fft(:)));
+            [h,p3] = kstest(randn(numel(convolution_result_fft),1));
+            disp([ 'Channel:' sensor2use 'KS test for norm power: '        num2str(p1) ' (>.05 means normal distribution) ' ])
+            disp([ 'Channel:' sensor2use 'KS test for log norm power: ' num2str(p2) ' (>.05 means normal distribution) ' ])
+            %disp([ 'KS test for normality of random data: '  num2str(p3) ' (>.05 means normal distribution) ' ])
+        end
+        % display the chart only for those channels that have no normal
+        % distribution, or when we are interested in only one channel, initchan =
+        % chantouse
+        if (p1 + p2 > 0.05) || (initchan == chantouse)
+            % plot distirbution of power data
+            %counter of channel with normal distribtion
+            counternormalc = counternormalc  + 1;
+            figure;
+            %subplot(chantouse-1,2,(chani-1)*2-1)
+            subplot(1,2,1)
+            hist(convolution_result_fft(:),500)
+            % str=sprintf('Distribution of power values = %s ', num2str(sensor2use));
+            title(['Distribution of power for channel: ' sensor2use ])
+            %title(str)
+            %title('Distribution of power values' sensor2use )
+            axis square
+            %set(gca,'xlim',[EEG.times(1) EEG.times(end)],'ylim',[min(real_data(:)) max(real_data(:))])
+            xlabel(['Power (\muV)) channel:  ' sensor2use ])
+            ylabel('Count')
+            %subplot(chantouse-1,2,(chani-1)*2)*
+            subplot(1,2,2)
+            hist(log10(convolution_result_fft(:)),500)
+            title(['Distribution of log_1_0power for channel:', sensor2use])
+            xlabel(['log10 Power for channel: ' sensor2use ])
+            ylabel('Count')
+            axis square
         end
     end
-    %calculate correlation matrix
-    %save r_spearman_corrmat as mat file and draw colour matrix
-    typeofcorr = 'Pearson';
-    save_and_display_corr_mat(r_pearson_corrmat, initchan, nbofrows, channel_labels,centerfreq, wavelet_cycles, subjandcond, typeofcorr);
-    typeofcorr = 'Spearman';
-    save_and_display_corr_mat(r_spearman_corrmat, initchan, nbofrows, channel_labels,centerfreq, wavelet_cycles, subjandcond, typeofcorr);
+    
+    %% 3. Calculate the correlation matrix between pairs or only one pair
+    % all_pair = 1 corr matrix  for all combinations between initchan and chantouse, all_pair = 0 only between two channels
+    all_pair= 1;
+    if all_pair == 0
+        % Calculate the correlation of only one pair
+        sensor1 = 'LHD2';
+        sensor2 = 'LHD1';
+        disp(['Estimation of correlation coefficient of pair ' sensor1 '--' sensor2])
+        %call compute_convolution
+        [convolution_result_fft1, convolution_result_fft2,r_pearson, r_spearman,] = compute_convolution_onepair(sensor1, sensor2, EEG, half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles, time, centerfreq, trial2plot,times2plot, draw_all_single_correlations);
+        disp(['Estimation of correlation coefficient r_pearson=' num2str(r_pearson) ' , r_spearman=' num2str(r_spearman) ])
+    else
+        %initialize matrix of correlation coefficients
+        %number of rows (=cols) for which is actually calculated the correlation the correlation matrix
+        nbofrows = chantouse - initchan + 1;
+        r_pearson_corrmat = zeros(EEG.nbchan-1,EEG.nbchan-1);
+        r_spearman_corrmat = zeros(EEG.nbchan-1,EEG.nbchan-1);
+        disp(['Estimation of correlation coefficient of ALL pair between' channel_labels(initchan) '--' channel_labels(chantouse)])
+        for chani=initchan:chantouse
+            for chanj=chani +1:chantouse
+                sensor1 = channel_labels(chani);
+                sensor2 = channel_labels(chanj);
+                [convolution_result_fft1, convolution_result_fft2,r_pearson, r_spearman] = compute_convolution_onepair(sensor1, sensor2, EEG, half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles, time, centerfreq, trial2plot,times2plot,draw_all_single_correlations);
+                disp(['Estimation of correlation coefficient of' sensor1 '--' sensor2 ' r_pearson=' num2str(r_pearson) ' r_spearman=' num2str(r_spearman) ' DONE!'])
+                r_pearson_corrmat(chani-1,chanj-1) = r_pearson;
+                r_pearson_corrmat(chanj-1,chani-1) = r_pearson_corrmat(chani-1,chanj-1);
+                r_spearman_corrmat(chani-1,chanj-1) = r_spearman;
+                r_spearman_corrmat(chanj-1,chani-1) = r_spearman_corrmat(chani-1,chanj-1);
+            end
+        end
+        %calculate correlation matrix
+        %save r_spearman_corrmat as mat file and draw colour matrix
+        typeofcorr = 'Pearson';
+        save_and_display_corr_mat(r_pearson_corrmat, initchan, nbofrows, channel_labels,centerfreq, wavelet_cycles, subjandcond, typeofcorr,myfullname);
+        typeofcorr = 'Spearman';
+        save_and_display_corr_mat(r_spearman_corrmat, initchan, nbofrows, channel_labels,centerfreq, wavelet_cycles, subjandcond, typeofcorr,myfullname);
+    end
+    disp(['DONE for frequency =' num2str(centerfreq)])
 end
-%% time frequency power, for 2 channels conditional to another
+%% 4. Time frequency power, for 2 channels and 2 channels conditional to another
 disp('Calling to time-freq power for two channels....')
-res_func = timefrequencypower(subjandcond, EEG, centerfreq, time, half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles);
+%res_func = timefrequencypower(subjandcond, EEG, centerfreq, time, half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles);
 
 end
 
 function [convolution_result_fft1, convolution_result_fft2, r_pearson, r_spearman] = compute_convolution_onepair(sensor1, sensor2, EEG, half_of_wavelet_size, n_wavelet, n_data, n_convolution, wavelet_cycles, time,centerfreq, trial2plot,times2plot, draw_all_single_correlations)
 %% Figure 27.4
-%times2plot = dsearchn(EEG.times',[-300 1200]');
-% global centerfreq;
-% global trial2plot;
-% global times2plot;
-%times2plot =  dsearchn(EEG.times',[ EEG.times(1) EEG.times(end)]');
-%trial2plot = EEG.trials;
-
 fft_data1 = fft(reshape(EEG.data(strcmpi(sensor1,{EEG.chanlocs.labels}),:,:),1,EEG.pnts*EEG.trials),n_convolution);
 fft_data2 = fft(reshape(EEG.data(strcmpi(sensor2,{EEG.chanlocs.labels}),:,:),1,EEG.pnts*EEG.trials),n_convolution);
 % create wavelet and run convolution
@@ -211,8 +212,8 @@ if draw_all_single_correlations == 1
 end
 end
 
-function [ret_val] =  save_and_display_corr_mat(corrmat, initialrow, nbofrows, channel_labels, centerfreq, wavelet_cycles, subjandcond, typeofcorr)
-%% Draws correlation matrix with contour using imagesc
+function [ret_val] =  save_and_display_corr_mat(corrmat, initialrow, nbofrows, channel_labels, centerfreq, wavelet_cycles, subjandcond, typeofcorr, myfullname)
+%% Saves as a mat file and draws correlation matrix with contour using imagesc
 % from the entire corrmat it cuts a section given from initial to chantouse
 % and draws that sub matrix
 
@@ -224,6 +225,28 @@ if issym(corrmat) == 0
     error(msgerror);
     ret_val = -1;
 else
+    %Save object  corrmat as mat file
+    [mat_pathstr,mat_name,mat_ext] = fileparts(myfullname);
+    %typeofcorr =strcat(typeofcorr, '_');
+    ftypeofcorr =strcat(typeofcorr, '_Fq_');
+    %freq = sprintf('%d_', centerfreq);
+    ftypeofcorr =strcat(ftypeofcorr,num2str(centerfreq));
+    ftypeofcorr = strcat(ftypeofcorr,'_');
+    corr_mat_name = strcat(ftypeofcorr,mat_name);
+    %create directory if does not exist 
+    cd(mat_pathstr);
+    if ~exist(mat_name, 'dir')
+        mkdir(mat_name);
+    end
+    cd(mat_name);
+    mat_pathstr = strcat(mat_pathstr, '\');
+    target_dir_mat = strcat(mat_pathstr, mat_name);
+    corr_mat_name = strcat(corr_mat_name, '.mat');
+    corr_mat_name = fullfile(target_dir_mat,corr_mat_name);
+    disp(['Saving correlation matrix in ...' corr_mat_name]);
+    save(corr_mat_name, 'corrmat', 'corr_mat_name');  
+    disp('DONE!')
+    disp('Displaying the corr matrix...')
     figure;
     %Build corrmat for the channels that is being actually calculated
     %initialize matrix nbofrows x nbofrows to zeros
