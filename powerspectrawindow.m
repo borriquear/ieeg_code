@@ -50,7 +50,7 @@ frequencies = linspace(0,snyq,snyq);
 %% Loop for the specified channels, convolution for N frequencies
 disp(['Calculating Fourier coefficients for channel=' num2str(initchan) ' to channel= ' num2str(chantouse)])
 for chani=initchan:chantouse
-    sensor2use = channel_labels(chani);    
+    sensor2use = channel_labels(chani);     
     data_all = EEG.data(chani,:,trial2plot);
     fourier = zeros(size(data_all));   
     % Fourier transform is dot-product between sine wave and data at each frequency
