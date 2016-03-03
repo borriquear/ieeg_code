@@ -13,29 +13,36 @@ function [] = cutoneepoch()
 % and band and notch filtered 
 
 %% Load the .mat file with the entire session. This section can be skipped if we load the file form the GUI
-localdir = 'D:\BIAL PROJECT\patients\On, Freeman'
-localmat = 'dummy1chan-filternadnotch.mat'
-%patient , date and session must correspond with the patient of the entire sessiondefined in localmat
-patientlist = {'CJ28' 'CJ28' 'TWH29' 'TWH30' 'TWH31' 'TWH32' 'TWH33' 'TWH34' 'TWH35'};
-patientindex = 1;
-se_patient = patientlist(patientindex); 
-se_date = '20151020'; % MMDDYYYY
-nu_session = 's1'; %sN
-fullmatfile = fullfile(localdir, localmat);
-disp(['Loading mat file alrady filtered ...' fullmatfile])
-% load the .mat file that contains the entire sesssion already filtered
-load(fullmatfile);
-EEGentire = EEG;
+% 1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20
+%  21    22    23    24    25    26    27    28    29    30    31    32    33    34    35    36    37
+% 1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17    18    19    20    21    22    23    24
+% 25    26    27    28    29    30    31    32    33    34    35    36    37    38    39    40    41    42    43    44    45    46    47    48
+% 49    50    51    52    53    54    55    56    57    58    59    60    61    62    63    64    65    66    67    68    69    70    71    72
+% 73    74    75    76    77    78    79    80    81    82    83    84    85    86    87    88    89
+% localdir = 'D:\BIAL PROJECT\patients\On, Freeman'
 
+% localmat = 'dummy1chan-filternadnotch.mat'
+% %patient , date and session must correspond with the patient of the entire sessiondefined in localmat
+ patientlist = {'fo24' 'sb27' 'jc28'  'nk33' 'mj34' 'ms31' 'TWH32' 'TWH33' 'TWH34' 'TWH35'};
+ patientindex = 6;
+ se_patient = patientlist(patientindex); 
+ se_date = '12022015'; % MMDDYYYY
+ nu_session = 's2'; %sN
+% fullmatfile = fullfile(localdir, localmat);
+% disp(['Loading mat file alrady filtered ...' fullmatfile])
+% % load the .mat file that contains the entire sesssion already filtered
+% load(fullmatfile);
+% EEGentire = EEG;
+[myfullname, EEG, channel_labels] = initialize_EEG_variables()
 %% Specify the times to cut inthe session file initially load
 % check excel file to see the initial and final time of the epoch
 
-hmsdate_startsession = '12:26:07';
-hmsdate_initepoch = '12:53:00' ;
-hmsdate_endepoch = '12:54:42';
+hmsdate_startsession = '16:29:57';
+hmsdate_initepoch = '17:42:58' ;
+hmsdate_endepoch = '17:44:50';
 % get the seconds from the actualtime
 % t0...t10.....t20, t21 is the duration in seconds 
-EEG = EEGentire;
+%EEG = EEGentire;
 disp(sprintf('From time to seconds, init session= %s , initial epoch= %s respectively', hmsdate_startsession, hmsdate_initepoch ))
 [t10] = fromtime_to_seconds(hmsdate_startsession, hmsdate_initepoch);
 disp(['seconds, t10 = ', num2str(t10)])
@@ -46,13 +53,23 @@ timelimits = [t10 t20];
 disp(['seconds t20=', num2str(t20)])
 %scale timelimits with the samploing rate 
 datapointtimelimits = timelimits*EEG.srate;
-
 disp(['Creating epoch between [t10, t20]s=' num2str(timelimits)])
-EEGepoch =  eeg_eegrej(EEGentire, datapointtimelimits);
+% EEG = eeg_eegrej returbns the reamining set
+rightend = [t20*EEG.srate EEG.pnts];
+leftend = [0 t10*EEG.srate];
+disp('getting the left side of the epoch')
+EEGepoch0t20 =  eeg_eegrej(EEG, rightend);
+disp('getting the final epoch')
+EEGepocht10t20 =  eeg_eegrej(EEGepoch0t20, leftend);
+%EEGepoch =  eeg_eegrej(EEG, datapointtimelimits);
 disp(['EEGepoch created '])
+[localdir localfile localextension] = fileparts(myfullname);
+%cuttosave = 'EEG_cut_BL_HYP_fo24_s1.mat'
+%cutfiletosave = fullfile(localdir, cuttosave);
+%save cutfiletosave -struct EEGepoch;
 % save .mat file
 disp(['Saving EEGepoch as a mat file '])
-savematfileforepoch(localdir, EEGepoch, se_patient, se_date, nu_session)
+savematfileforepoch(localdir, EEGepocht10t20, se_patient, se_date, nu_session)
 disp(['Created mat file for :' se_patient, se_date, nu_session])
 end
 
@@ -65,19 +82,8 @@ function [] = savematfileforepoch(localdir, EEGepoch, se_patient, se_date, nu_se
 EEG = EEGepoch
 matfh = 'EEG_cut_';
 conditionlist = {'BL_EC_POST' 'BL_EO_POST' 'BL_EC_PRE' 'BL_EO_PRE' 'BL_HYP'};
-conditionindex = 5;
-%patientlist = {'TWH28' 'TWH29' 'TWH30' 'TWH31' 'TWH32' 'TWH33' 'TWH34' 'TWH35'  };
-%patientindex = 1;
-%se_date = '10202015'; % MMDDYYYY
-%nu_session = 's1'; %sN
+conditionindex = 1;
 disp(['Condition is:' conditionlist(conditionindex)])
-% matfh = strcat(matfh, conditionlist(conditionindex));
-% matfh = strcat(matfh, '_');
-% matfh = strcat(matfh, se_patient);
-% matfh = strcat(matfh, '_');
-% matfh = strcat(matfh, se_date);
-% matfh = strcat(matfh, '_');
-% matfh = strcat(matfh, nu_session);
 matfh = sprintf('EEG_cut_%s_%s_%s_%s', conditionlist{conditionindex},se_patient{1}, se_date, nu_session)
 disp(['mat file is:' matfh])
 fullmatfile = fullfile(localdir, matfh);
