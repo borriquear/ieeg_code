@@ -40,9 +40,9 @@ nyquistfreq = srate/2;
 hz = linspace(0,nyquistfreq,floor(n/2)+1);
 
 % Choose the channel(s) wewant to analyze
-chani = 36;
+chani = 33;
 chanend = EEG.nbchan;
-chanend = chani;
+%chanend = chani;
 tot_channels = chanend - chani+1;
 %vector of channels 0,1 1 when to display that channel
 vectorofchannelsprint = zeros(1,EEG.nbchan);
@@ -50,8 +50,9 @@ vectorofchannelsprint(chani:chanend) =1;
 tot_rows = tot_channels;
 % figure all channel bands
 allchbands =figure;
-for irow =1:tot_channels
-
+hbars = figure;
+for irow =chani:chanend
+    hchann(chani) = figure;
     signal = EEG.data(chani,:,triali);
     signalX = zeros(size(signal));
     % fourier time is not the time in seconds but the time normalized
@@ -67,7 +68,7 @@ for irow =1:tot_channels
         if vectorofchannelsprint(chani) == 1
             disp('Calculating FFT...')            
             signalXF = fft(signal)/n;
-            hchann(chani) = figure;
+            figure(hchann(chani))
             title([' Condition=' eegcond ', Patient =' eegpatient ', Date' eegdate ', Session' eegsession ] );
             %subplot(tot_rows,4,1 + (4*(irow-1)))
             % plot the signal time series
@@ -151,14 +152,24 @@ frex_idx = sort(dsearchn(hz',f'));
 requested_frequences = 2*abs(signalXF(frex_idx));
 
 %clf
-hbars(chani) = figure;
+figure(hbars);
 % subplot(tot_rows,3,3*irow)
 % %subplot(111)
  bar(requested_frequences)
  xlabel('Frequencies (Hz)'), ylabel('Amplitude')
+ freq_bands = ['t' 'd' 'a' 'b' 'g' ]
  set(gca,'xtick',1:length(frex_idx),'xticklabel',cellstr(num2str(round(hz(frex_idx))')))
 % %hold on
-
+x1 = 4;
+x2 = 8;
+x3 = 12;
+x4 = 40;
+y1=get(gca,'ylim')
+hold on
+plot([x1 x1],y1)
+plot([x2 x2],y1)
+plot([x3 x3],y1)
+plot([x4 x4],y1)
 
 %% Time - frequency analysis, The short-time Fourier transform
 sft = 0;
@@ -317,30 +328,35 @@ disp('end loop to calculate tf')
 %subplot(tot_rows,4,4  + (4*(irow-1)))
 htimefre(chani)= figure;
 disp('calculating contour...')
-% contourf(t,frex,tf,40,'linecolor','none')
-% set(gca,'clim',[0 1]), colorbar
-% xlabel('Time (s)'), ylabel('Frequency (Hz)')
+contourf(t,frex,tf,40,'linecolor','none')
+set(gca,'clim',[0 1]), colorbar
+xlabel('Time (s)'), ylabel('Frequency (Hz)')
 figure(allchbands);
 hold on
 plot(hz,2*abs(signalXF(1:length(hz))),'r')
 xlabel('Frequencies (Hz)'), ylabel('Amplitude')
 set(gca,'xlim',[0 50])
 legend({'fast Fourier transform'})
-disp(['DONE with channel=' num2str(chani)])
+disp(['DONE with channel=' num2str(irow)])
+totalsignalXF = sum(2*abs(signalXF(1:length(hz))));
 end
 %end of channels
 figure(allchbands);
-x1 = 4
-x2 = 8
-x3 = 12
-x4 = 40
+hamperband = 0;
+x1 = 4;
+x2 = 8;
+x3 = 12;
+x4 = 40;
 y1=get(gca,'ylim')
 hold on
 plot([x1 x1],y1)
 plot([x2 x2],y1)
 plot([x3 x3],y1)
 plot([x4 x4],y1)
-
+% deltaband = mean(2*abs(totalsignalXF(x1:x2)))
+% alphaband = mean(2*abs(totalsignalXF(x2:x3)))
+% betaband = mean(2*abs(totalsignalXF(x3:x4)))
+% gammaband= mean(2*abs(totalsignalXF(x4:end)))
 end
 
 function [eegcond, eegpatient,eegdate,eegsession ] = getsessionpatient(eegfilename)
