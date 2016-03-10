@@ -42,7 +42,7 @@ hz = linspace(0,nyquistfreq,floor(n/2)+1);
 % Choose the channel(s) we want to analyze
 chani = 2;
 chanend = EEG.nbchan;
-chanend = chani +2;
+%chanend = chani +1;
 %chanend = chani;
 tot_channels = chanend - chani+1;
 %vector of channels (0,1) 1 when to display that channel
@@ -50,8 +50,8 @@ vectorofchannelsprint = zeros(1,EEG.nbchan);
 vectorofchannelsprint(chani:chanend) = 1;
 tot_rows = tot_channels;
 % figure all channel bands
-allchbands = figure;
-hbars = figure;
+%allchbands = figure;
+%hbars = figure;
 for irow =chani:chanend
     hchann(chani) = figure;
     signal = EEG.data(chani,:,triali);
@@ -70,10 +70,9 @@ for irow =chani:chanend
             disp('Calculating FFT...')
             signalXF = fft(signal)/n;
             figure(hchann(chani))
-            title([' Condition=' eegcond ', Patient =' eegpatient ', Date' eegdate ', Session' eegsession ] );
             %subplot(tot_rows,4,1 + (4*(irow-1)))
             % plot the signal time series
-            subplot(2,1,1)
+            sp1 = subplot(2,1,1)
             plot(t,signal)
             xlabel('Time (s)'), ylabel('Amplitude')
             %set(gca,'ylim',[-0.2 6.0])
@@ -81,13 +80,12 @@ for irow =chani:chanend
             legend({'time series'})
             %plot fourier coefficients
             %subplot(tot_rows,4,2 + (4*(irow-1)))
-            subplot(2,1,2)
+            sp2 = subplot(2,1,2)
             plot(hz,2*abs(signalXF(1:length(hz))),'r')
             xlabel('Frequencies (Hz)'), ylabel('Amplitude')
             set(gca,'xlim',[0 50])
             legend({'fast Fourier transform'})
-            msgtitle = sprintf('Correlation Coefficient between pairs: %s ', typeofcorr);
-            title(msgtitle);
+            title(sp1, ['Channel:' num2str(irow-1) ' Condition:' eegcond ', Patient:' eegpatient ', Date:' eegdate ', Session:' eegsession ] );
         end
     else
         % not fast fourier very inefficient just to see how conceptually
@@ -106,7 +104,7 @@ for irow =chani:chanend
     %it estimates spectral peaks that are wider than the frequencies present in the original time series (this is called spectral leakage or frequency smearing). Thus, if isolating closely spaced frequencies is important, the multitaper method may not be a preferable option.
     %noisefactor = 20;
     % calculate power spectra with multitaper method
-    multitaper = 0;
+    multitaper = 1;
     if multitaper == 1
         disp(['Multitaper method to calculate the power spectrum for channel=' num2str(irow)])
         hmt(chani) = figure;
@@ -119,10 +117,8 @@ for irow =chani:chanend
         for tapi = 1:size(tapers,1)-1 % -1 because the last taper is typically not used
             % scale the taper for interpretable FFT result
             temptaper = tapers(tapi,:)./max(tapers(tapi,:));
-            
             % FFT of tapered data
             x = abs(fft(signal.*temptaper)/n).^2;
-            
             % add this spectral estimate to the total power estimate
             mtPow = mtPow + x(1:length(hz))';
         end
@@ -139,10 +135,15 @@ for irow =chani:chanend
         % amplitude because of the amount of noise. Try plotting amplitude by
         % multiplying the FFT result by 2 instead of squaring.
         clf
-        plot(hz,mtPow,'.-'), hold on
-        plot(hz,regPow,'r.-')
+        %plot(hz,mtPow,'.-'), hold on   %single taper
+        %sp1 = subplot(2,1,1)
+        plot(hz,regPow,'r.-')   %multitaper
         set(gca,'xlim',[0 50])
-        legend({'single taper';'multi taper'})
+        %legend({'Single taper';'Multi taper'})
+        legend({'Multi taper'}) 
+        xlabel('Frequencies (Hz)'), ylabel('Power')
+        title(['Multitaper method, Channel:' num2str(irow-1) ' Condition:' eegcond ', Patient:' eegpatient ', Date:' eegdate ', Session:' eegsession ] );
+        %sp2 = subplot(2,1,2)
     end
     
     %% Extract information about specific frequencies.
@@ -153,13 +154,13 @@ for irow =chani:chanend
     requested_frequences = 2*abs(signalXF(frex_idx));
     
     %clf
-    figure(hbars);
+    hbars(chani) = figure;
     % subplot(tot_rows,3,3*irow)
     % %subplot(111)
     bar(requested_frequences)
     xlabel('Frequencies (Hz)'), ylabel('Amplitude')
     freq_bands = ['t' 'd' 'a' 'b' 'g' ]
-    set(gca,'xtick',1:length(frex_idx),'xticklabel',cellstr(num2str(round(hz(frex_idx))')))
+    %set(gca,'xtick',1:length(frex_idx),'xticklabel',cellstr(num2str(round(hz(frex_idx))')))
     % %hold on
     x1 = 4;
     x2 = 8;
@@ -171,8 +172,12 @@ for irow =chani:chanend
     plot([x2 x2],y1)
     plot([x3 x3],y1)
     plot([x4 x4],y1)
+    title([' Channel:' num2str(irow-1) ' Condition:' eegcond ', Patient:' eegpatient ', Date:' eegdate ', Session:' eegsession ] );
+    [theta, delta, alpha, beta, gamma] = calculatemeanandstdoerfreq(requested_frequences, x1, x2, x3, x4, chani);
+    %text(1, 1,['d.mean = ',num2str(delta(chani-1).mean) ])
     
     %% Time - frequency analysis, The short-time Fourier transform
+    % does not work , fix it!!
     sft = 0;
     if sft == 1
         % define 'chunks' of time for different frequency components
@@ -332,32 +337,17 @@ for irow =chani:chanend
     contourf(t,frex,tf,40,'linecolor','none')
     set(gca,'clim',[0 1]), colorbar
     xlabel('Time (s)'), ylabel('Frequency (Hz)')
-    figure(allchbands);
-    hold on
-    plot(hz,2*abs(signalXF(1:length(hz))),'r')
-    xlabel('Frequencies (Hz)'), ylabel('Amplitude')
-    set(gca,'xlim',[0 50])
-    legend({'fast Fourier transform'})
-    disp(['DONE with channel=' num2str(irow)])
-    totalsignalXF = sum(2*abs(signalXF(1:length(hz))));
+    title([' Channel:' num2str(irow-1) ' Condition:' eegcond ', Patient:' eegpatient ', Date:' eegdate ', Session:' eegsession ] );
+%     figure(allchbands);
+%     hold on
+%     plot(hz,2*abs(signalXF(1:length(hz))),'r')
+%     xlabel('Frequencies (Hz)'), ylabel('Amplitude')
+%     set(gca,'xlim',[0 50])
+%     legend({'fast Fourier transform'})
+%     disp(['DONE with channel=' num2str(irow)])
+%     totalsignalXF = sum(2*abs(signalXF(1:length(hz))));
 end
-%end of channels
-figure(allchbands);
-hamperband = 0;
-x1 = 4;
-x2 = 8;
-x3 = 12;
-x4 = 40;
-y1=get(gca,'ylim')
-hold on
-plot([x1 x1],y1)
-plot([x2 x2],y1)
-plot([x3 x3],y1)
-plot([x4 x4],y1)
-% deltaband = mean(2*abs(totalsignalXF(x1:x2)))
-% alphaband = mean(2*abs(totalsignalXF(x2:x3)))
-% betaband = mean(2*abs(totalsignalXF(x3:x4)))
-% gammaband= mean(2*abs(totalsignalXF(x4:end)))
+
 end
 
 function [eegcond, eegpatient,eegdate,eegsession ] = getsessionpatient(eegfilename)
@@ -378,4 +368,18 @@ else
     [eegdate eegsession]= strtok(remain, '_');
     eegsession = strtok(eegsession, '_');
 end
+end
+
+function [theta, delta, alpha, beta, gamma]  = calculatemeanandstdoerfreq(requested_frequences, x1, x2, x3, x4, chani);
+disp(['calculating statistics oer channel' num2str(chani-1)])
+theta(chani-1).mean = mean(requested_frequences(1:x1))
+theta(chani-1).std = std(requested_frequences(1:x1))
+delta(chani-1).mean = mean(requested_frequences(x1+1:x2))
+delta(chani-1).std = std(requested_frequences(x1+1:x2))
+alpha(chani-1).mean = mean(requested_frequences(x2+1:x3))
+alpha(chani-1).std = std(requested_frequences(x2+1:x3))
+beta(chani-1).mean = mean(requested_frequences(x3+1:x4))
+beta(chani-1).std = std(requested_frequences(x3+1:x4))
+gamma(chani-1).mean = mean(requested_frequences(x4+1:end))
+gamma(chani-1).std = std(requested_frequences(x4+1:end))
 end

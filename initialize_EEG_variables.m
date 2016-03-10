@@ -10,14 +10,15 @@ function [myfullname, EEG, channel_labels] =  initialize_EEG_variables()
 clear all
 %Load matfile 
 mydir = 'C:\Users\shelagh\Desktop\patients\On, Freeman\Session 1 (unique) 19-Sep-2015'
-mydir = 'D:\BIAL PROJECT\patients\twh31\'
+mydir = 'C:\Users\shelagh\Desktop\patients\sb27'
 myfile = 'EEG_cut_BL_HYP_fo24_09192015_s1.mat'
-myfile ='EEG_cut_BL_HYP_sm31_12012015_s1.mat'
+myfile ='EEG_cut_BL_HYP_sb27_10222015_s2.mat'
 myfullname = fullfile(mydir, myfile);
 disp('Loading mat file...')
 EEG = load(myfullname)
 if isstruct(EEG) == 1
-    EEG = EEG.EEG_cut_BL_HYP
+    %EEG = EEG.EEG_cut_BL_HYP
+    EEG = EEG.EEG
 end
 %EEG=load('filename.mat')
 disp(['File ' myfile ' loaded!' ])
